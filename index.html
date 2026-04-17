@@ -196,6 +196,7 @@ function getLocation() {
 
 /* WEATHER + CITY */
 async function fetchAll(lat, lon) {
+  cityEl.style.display = "block";
 
   const weatherURL =
     `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${API_KEY}`;
@@ -251,9 +252,11 @@ async function fetchAll(lat, lon) {
 
 /* FALLBACK */
 function fallback() {
-  cityEl.innerText = "your location";
-  weatherEl.innerText = "Weather data unavailable";
+  cityEl.style.display = "none";
+
+  weatherEl.innerText = "Enable location services to see live weather";
   stateEl.innerText = "But it always feels like storm weather with this track.";
+
   reveal();
 }
 

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Storm Before the Calm</title>
+
+<style>
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Georgia, serif;
+  height: 100vh;
+  overflow: hidden;
+  background: black;
+  color: #f0ece6;
+}
+
+/* ENTRY */
+#enter {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+  cursor: pointer;
+  text-align: center;
+  padding: 20px;
+  z-index: 10;
+}
+
+#enter h1 {
+  font-size: clamp(1.6rem, 5vw, 3rem);
+}
+
+/* BACKGROUND VIDEO */
+#bg-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1s ease;
+  z-index: -2;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: -1;
+}
+
+/* TEXT */
+#text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 700px;
+  text-align: center;
+  font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+/* BUTTON */
+#cta {
+  display: inline-block;
+  margin-top: 25px;
+  padding: 14px 28px;
+  background: #c8a951;
+  color: black;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+  #text {
+    font-size: 1.05rem;
+  }
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- ENTRY -->
+<div id="enter">
+  <h1>Enter the eye of the storm</h1>
+</div>
+
+<!-- VIDEO -->
+<video id="bg-video" muted loop playsinline>
+  <source src="WJ-Storm-Animated.mp4" type="video/mp4">
+</video>
+
+<div class="overlay"></div>
+
+<!-- TEXT -->
+<div id="text"></div>
+
+<!-- CTA -->
+<a id="cta" href="YOUR_SPOTIFY_LINK" target="_blank">Listen</a>
+
+<script>
+
+const API_KEY = "YOUR_TOMORROW_IO_KEY";
+
+const enter = document.getElementById("enter");
+const video = document.getElementById("bg-video");
+const text = document.getElementById("text");
+const cta = document.getElementById("cta");
+
+/* UNLOCK */
+enter.addEventListener("click", () => {
+  enter.style.display = "none";
+  video.play().catch(()=>{});
+  video.style.opacity = 1;
+
+  getLocation();
+});
+
+/* LOCATION */
+function getLocation() {
+  if (!navigator.geolocation) {
+    text.innerText = "Weather unavailable — but it always feels like storm weather with this track.";
+    reveal();
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+    () => {
+      text.innerText = "In your world... it always feels like storm weather with this track.";
+      reveal();
+    }
+  );
+}
+
+/* WEATHER */
+async function fetchWeather(lat, lon) {
+
+  const url = `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${API_KEY}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const v = data?.data?.values || {};
+
+    const temp = Math.round(v.temperature || 0);
+    const wind = v.windSpeed || 0;
+    const rain = v.precipitationIntensity || 0;
+    const clouds = v.cloudCover || 0;
+
+    const score =
+      rain * 80 +
+      clouds * 0.4 +
+      wind * 2 +
+      (v.visibility < 10 ? 20 : 0);
+
+    const isStorm = score > 50;
+
+    const state = isStorm ? "storm" : "calm";
+
+    const message = isStorm
+      ? `It's ${temp}° in your area — you're in the storm.`
+      : `It's ${temp}° and calm where you are — you're in the calm.`;
+
+    text.innerText = message;
+
+    reveal();
+
+  } catch (e) {
+    text.innerText = "Something about your sky always feels like storm weather with this track.";
+    reveal();
+  }
+}
+
+/* REVEAL UI */
+function reveal() {
+  text.style.opacity = 1;
+
+  setTimeout(() => {
+    cta.style.opacity = 1;
+  }, 2000);
+}
+
+</script>
+
+</body>
+</html>

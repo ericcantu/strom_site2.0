@@ -39,7 +39,7 @@ body {
   font-size: clamp(1.6rem, 5vw, 3rem);
 }
 
-/* BACKGROUND VIDEO */
+/* VIDEO */
 #bg-video {
   position: fixed;
   inset: 0;
@@ -58,25 +58,30 @@ body {
   z-index: -1;
 }
 
-/* TEXT */
-#text {
+/* CONTENT */
+#content {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90%;
-  max-width: 700px;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
   text-align: center;
-  font-size: clamp(1.1rem, 2.5vw, 1.6rem);
-  line-height: 1.4;
-  opacity: 0;
-  transition: opacity 1s ease;
+  padding: 20px;
+  gap: 10px;
 }
 
-/* BUTTON */
-#cta {
-  display: inline-block;
-  margin-top: 25px;
+/* LINES */
+.line {
+  opacity: 0;
+  transition: opacity 1s ease;
+  font-size: clamp(1.05rem, 2.5vw, 1.6rem);
+  line-height: 1.4;
+}
+
+/* BUTTONS */
+#stream {
+  margin-top: 20px;
   padding: 14px 28px;
   background: #c8a951;
   color: black;
@@ -87,9 +92,18 @@ body {
   transition: opacity 1s ease;
 }
 
+#giveaway {
+  margin-top: 12px;
+  font-size: 0.95rem;
+  color: #aaa;
+  text-decoration: underline;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
 /* MOBILE */
 @media (max-width: 600px) {
-  #text {
+  .line {
     font-size: 1.05rem;
   }
 }
@@ -111,93 +125,139 @@ body {
 
 <div class="overlay"></div>
 
-<!-- TEXT -->
-<div id="text"></div>
+<!-- AUDIO (FIXED) -->
+<audio id="audio" src="storm-clip.mp3" preload="auto"></audio>
 
-<!-- CTA -->
-<a id="cta" href="YOUR_SPOTIFY_LINK" target="_blank">Listen</a>
+<!-- CONTENT -->
+<div id="content">
+
+  <div id="city" class="line"></div>
+  <div id="weather" class="line"></div>
+  <div id="state" class="line"></div>
+
+  <a id="stream" href="https://ffm.to/stormbeforethecalm.PMT" target="_blank">
+    Stream Now
+  </a>
+
+  <a id="giveaway" href="https://feature.fm/solutions/links" target="_blank">
+    Enter Giveaway
+  </a>
+
+</div>
 
 <script>
 
-const API_KEY = "YOUR_TOMORROW_IO_KEY";
+const API_KEY = "w27cjRMcrduWuPjLsmlR3wdvtZI0A9Z3";
 
 const enter = document.getElementById("enter");
 const video = document.getElementById("bg-video");
-const text = document.getElementById("text");
-const cta = document.getElementById("cta");
+const audio = document.getElementById("audio");
 
-/* UNLOCK */
+const cityEl = document.getElementById("city");
+const weatherEl = document.getElementById("weather");
+const stateEl = document.getElementById("state");
+
+const streamBtn = document.getElementById("stream");
+const giveawayBtn = document.getElementById("giveaway");
+
+/* ENTRY */
 enter.addEventListener("click", () => {
   enter.style.display = "none";
+
   video.play().catch(()=>{});
   video.style.opacity = 1;
+
+  audio.play().catch(()=>{}); // ✅ RESTORED MUSIC
 
   getLocation();
 });
 
 /* LOCATION */
 function getLocation() {
-  if (!navigator.geolocation) {
-    text.innerText = "Weather unavailable — but it always feels like storm weather with this track.";
-    reveal();
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-    () => {
-      text.innerText = "In your world... it always feels like storm weather with this track.";
-      reveal();
-    }
+  navigator.geolocation?.getCurrentPosition(
+    pos => fetchAll(pos.coords.latitude, pos.coords.longitude),
+    () => fallback()
   );
 }
 
-/* WEATHER */
-async function fetchWeather(lat, lon) {
+/* WEATHER + CITY */
+async function fetchAll(lat, lon) {
 
-  const url = `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${API_KEY}`;
+  const weatherURL =
+    `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${API_KEY}`;
+
+  const geoURL =
+    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
 
   try {
-    const res = await fetch(url);
-    const data = await res.json();
 
-    const v = data?.data?.values || {};
+    const [weatherRes, geoRes] = await Promise.all([
+      fetch(weatherURL),
+      fetch(geoURL)
+    ]);
 
-    const temp = Math.round(v.temperature || 0);
-    const wind = v.windSpeed || 0;
+    const weather = await weatherRes.json();
+    const geo = await geoRes.json();
+
+    const v = weather?.data?.values || {};
+
+    /* ✅ FIX: no more 0° bug */
+    const tempRaw = v.temperature;
+    const temp =
+  (typeof tempRaw === "number")
+    ? Math.round((tempRaw * 9/5) + 32)
+    : "—";
+
     const rain = v.precipitationIntensity || 0;
-    const clouds = v.cloudCover || 0;
+    const wind = v.windSpeed || 0;
 
-    const score =
-      rain * 80 +
-      clouds * 0.4 +
-      wind * 2 +
-      (v.visibility < 10 ? 20 : 0);
+    const city =
+      geo?.address?.city ||
+      geo?.address?.town ||
+      geo?.address?.county ||
+      geo?.address?.state ||
+      "your location";
 
-    const isStorm = score > 50;
+    const isStorm = rain > 0.2 || wind > 15;
 
-    const state = isStorm ? "storm" : "calm";
+    cityEl.innerText = city;
 
-    const message = isStorm
-      ? `It's ${temp}° in your area — you're in the storm.`
-      : `It's ${temp}° and calm where you are — you're in the calm.`;
+    weatherEl.innerText =
+      temp === "—"
+        ? "Weather currently unavailable"
+        : `It's ${temp}° and ${isStorm ? "stormy conditions" : "clear skies"} right now`;
 
-    text.innerText = message;
+    stateEl.innerText =
+      isStorm ? "You're in the storm." : "You're in the calm.";
 
     reveal();
 
   } catch (e) {
-    text.innerText = "Something about your sky always feels like storm weather with this track.";
-    reveal();
+    fallback();
   }
 }
 
-/* REVEAL UI */
+/* FALLBACK */
+function fallback() {
+  cityEl.innerText = "your location";
+  weatherEl.innerText = "Weather data unavailable";
+  stateEl.innerText = "But it always feels like storm weather with this track.";
+  reveal();
+}
+
+/* REVEAL */
 function reveal() {
-  text.style.opacity = 1;
+
+  cityEl.style.opacity = 1;
+  weatherEl.style.opacity = 1;
+  stateEl.style.opacity = 1;
 
   setTimeout(() => {
-    cta.style.opacity = 1;
+    streamBtn.style.opacity = 1;
+  }, 1200);
+
+  setTimeout(() => {
+    giveawayBtn.style.opacity = 1;
   }, 2000);
 }
 

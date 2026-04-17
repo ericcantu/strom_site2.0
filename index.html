@@ -39,18 +39,30 @@ body {
   font-size: clamp(1.6rem, 5vw, 3rem);
 }
 
-/* VIDEO */
-#bg-video {
+/* =========================
+   VIDEO FIX (CINEMATIC CROP)
+========================= */
+.video-wrap {
   position: fixed;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 1s ease;
+  overflow: hidden;
   z-index: -2;
 }
 
+#bg-video {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) scale(1.15);
+
+  width: auto;
+  height: 120%;
+
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+/* OVERLAY */
 .overlay {
   position: fixed;
   inset: 0;
@@ -118,14 +130,16 @@ body {
   <h1>Enter the eye of the storm</h1>
 </div>
 
-<!-- VIDEO -->
-<video id="bg-video" muted loop playsinline>
-  <source src="WJ-Storm-Animated.mp4" type="video/mp4">
-</video>
+<!-- VIDEO WRAPPER -->
+<div class="video-wrap">
+  <video id="bg-video" muted loop playsinline>
+    <source src="WJ-Storm-Animated.mp4" type="video/mp4">
+  </video>
+</div>
 
 <div class="overlay"></div>
 
-<!-- AUDIO (FIXED) -->
+<!-- AUDIO -->
 <audio id="audio" src="storm-clip.mp3" preload="auto"></audio>
 
 <!-- CONTENT -->
@@ -167,7 +181,7 @@ enter.addEventListener("click", () => {
   video.play().catch(()=>{});
   video.style.opacity = 1;
 
-  audio.play().catch(()=>{}); // ✅ RESTORED MUSIC
+  audio.play().catch(()=>{});
 
   getLocation();
 });
@@ -201,12 +215,10 @@ async function fetchAll(lat, lon) {
 
     const v = weather?.data?.values || {};
 
-    /* ✅ FIX: no more 0° bug */
     const tempRaw = v.temperature;
-    const temp =
-  (typeof tempRaw === "number")
-    ? Math.round((tempRaw * 9/5) + 32)
-    : "—";
+    const temp = typeof tempRaw === "number"
+      ? Math.round((tempRaw * 9/5) + 32)
+      : null;
 
     const rain = v.precipitationIntensity || 0;
     const wind = v.windSpeed || 0;
@@ -223,9 +235,9 @@ async function fetchAll(lat, lon) {
     cityEl.innerText = city;
 
     weatherEl.innerText =
-      temp === "—"
-        ? "Weather currently unavailable"
-        : `It's ${temp}° and ${isStorm ? "stormy conditions" : "clear skies"} right now`;
+      temp !== null
+        ? `It's ${temp}°F and ${isStorm ? "stormy conditions" : "clear skies"} right now`
+        : "Weather currently unavailable";
 
     stateEl.innerText =
       isStorm ? "You're in the storm." : "You're in the calm.";
